@@ -1,7 +1,7 @@
 package merkle
 
 import (
-	"log"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -10,8 +10,9 @@ var words string = `Who were expelled from the academy for crazy & publishing ob
 
 func TestNodeSums(t *testing.T) {
 	var (
-		nodes []*Node
-		h     = DefaultHash.New()
+		nodes            []*Node
+		h                = DefaultHash.New()
+		expectedChecksum = "819fe8fed7a46900bd0613344c5ba2be336c74db"
 	)
 	for _, word := range strings.Split(words, " ") {
 		h.Reset()
@@ -28,39 +29,14 @@ func TestNodeSums(t *testing.T) {
 			break
 		}
 	}
-	for i := range nodes {
-		c, err := nodes[i].Checksum()
-		if err != nil {
-			t.Error(err)
-		}
-		t.Logf("checksum %x", c)
+	if len(nodes) != 1 {
+		t.Errorf("%d nodes", len(nodes))
 	}
-	if len(nodes) > 0 {
-		t.Errorf("%d nodes; %d characters", len(nodes), len(words))
+	c, err := nodes[0].Checksum()
+	if err != nil {
+		t.Error(err)
 	}
-}
-
-func levelUp(nodes []*Node) []*Node {
-	var (
-		newNodes []*Node
-		last     = len(nodes) - 1
-	)
-
-	for i := range nodes {
-		if i%2 == 0 {
-			if i == last {
-				// TODO rebalance the last parent
-				log.Println("WHOOP")
-			}
-			n := NewNode()
-			n.Left = nodes[i]
-			n.Left.Parent = n
-			newNodes = append(newNodes, n)
-		} else {
-			n := newNodes[len(newNodes)-1]
-			n.Right = nodes[i]
-			n.Right.Parent = n
-		}
+	if gotChecksum := fmt.Sprintf("%x", c); gotChecksum != expectedChecksum {
+		t.Errorf("expected checksum %q, got %q", expectedChecksum, gotChecksum)
 	}
-	return newNodes
 }
