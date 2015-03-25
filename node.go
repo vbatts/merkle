@@ -1,28 +1,36 @@
 package merkle
 
 import (
-	"crypto"
-	_ "crypto/sha1" // to satisfy our DefaultHash
+	"crypto/sha1"
 	"fmt"
 	"hash"
 )
 
 var (
-	// DefaultHash is for checksum of blocks and nodes
-	DefaultHash = crypto.SHA1
+	// DefaultHashMaker is for checksum of blocks and nodes
+	DefaultHashMaker = func() hash.Hash { return sha1.New() }
 )
 
 // HashMaker produces a new has for use in making checksums
 type HashMaker func() hash.Hash
 
-// NewNode returns a new Node with the DefaultHash for checksums
+// NewNode returns a new Node with the DefaultHashMaker for checksums
 func NewNode() *Node {
-	return NewNodeHash(DefaultHash.New)
+	return NewNodeHash(DefaultHashMaker)
 }
 
 // NewNodeHash returns a new Node using the provided crypto.Hash for checksums
 func NewNodeHash(h HashMaker) *Node {
 	return &Node{hash: h}
+}
+
+// NewNodeHashBlock returns a new Node using the provided crypto.Hash, and calculates the block's checksum
+func NewNodeHashBlock(h HashMaker, b []byte) *Node {
+	n := &Node{hash: h}
+	h1 := n.hash()
+	h1.Write(b)
+	n.checksum = h1.Sum(nil)
+	return n
 }
 
 // Node is a fundamental part of the tree.
@@ -31,7 +39,7 @@ type Node struct {
 	checksum            []byte
 	Parent, Left, Right *Node
 
-	pos int // XXX maybe keep their order when it is a direct block's hash
+	//pos int // XXX maybe keep their order when it is a direct block's hash
 }
 
 // IsLeaf indicates this node is for specific block (and has no children)

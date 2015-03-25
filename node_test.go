@@ -9,7 +9,7 @@ import (
 func TestNodeSums(t *testing.T) {
 	var (
 		nodes            []*Node
-		h                = DefaultHash.New()
+		h                = DefaultHashMaker()
 		words            = `Who were expelled from the academy for crazy & publishing obscene odes on the windows of the skull`
 		expectedChecksum = "819fe8fed7a46900bd0613344c5ba2be336c74db"
 	)
@@ -19,7 +19,7 @@ func TestNodeSums(t *testing.T) {
 			t.Errorf("on word %q, encountered %s", word, err)
 		}
 		sum := h.Sum(nil)
-		nodes = append(nodes, &Node{checksum: sum, hash: DefaultHash.New})
+		nodes = append(nodes, &Node{checksum: sum, hash: DefaultHashMaker})
 	}
 
 	newNodes := nodes
