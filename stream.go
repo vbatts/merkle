@@ -21,14 +21,13 @@ func NewHash(hm HashMaker, merkleBlockLength int) hash.Hash {
 // that will validate nodes as the new bytes are written. If a new written
 // block fails checksum, then return an error on the io.Writer
 
-// TODO satisfy the hash.Hash interface
 type merkleHash struct {
-	blockSize    int
-	tree         *Tree
-	hm           HashMaker
-	lastBlock    []byte // as needed, for Sum()
-	lastBlockLen int
-	//partialLastBlock bool
+	blockSize       int
+	tree            *Tree
+	hm              HashMaker
+	lastBlock       []byte // as needed, for Sum()
+	lastBlockLen    int
+	partialLastNode bool // true when Sum() has appended a Node for a partial block
 }
 
 // XXX this will be tricky, as the last block can be less than the BlockSize.
@@ -40,10 +39,23 @@ type merkleHash struct {
 //
 // if that last block was complete, then no worries. start the next node.
 func (mh *merkleHash) Sum(b []byte) []byte {
+	if b != nil && (len(b)+mh.lastBlockLen) > mh.blockSize {
+		// write a full node
+	}
+
+	n, err := NewNodeHashBlock(mh.hm, curBlock)
+	if err != nil {
+		// XXX might need to stash again the prior lastBlock and first little chunk
+		return numWritten, err
+	}
+	mh.tree.Nodes = append(mh.tree.Nodes, n)
+	numWritten += offset
+
 	// TODO check if len(mh.lastBlock) < blockSize
 	sum, err := mh.tree.Root().Checksum()
 	if err != nil {
-		log.Println(err)
+		// XXX i hate to swallow an error here, but the `Sum() []byte` signature :-\
+		log.Printf("[ERROR]: %s", err)
 	}
 	return sum
 }
@@ -63,7 +75,8 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 		offset     int = 0
 	)
 	if mh.lastBlock != nil && mh.lastBlockLen > 0 {
-		numBytes = copy(curBlock[:], mh.lastBlock[:])
+		//                                         XXX off by one?
+		numBytes = copy(curBlock[:], mh.lastBlock[:mh.lastBlockLen])
 		// not adding to numWritten, since these blocks were accounted for in a
 		// prior Write()
 
@@ -71,8 +84,7 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 		offset = copy(curBlock[numBytes:], b[:(mh.blockSize-numBytes)])
 		n, err := NewNodeHashBlock(mh.hm, curBlock)
 		if err != nil {
-			// XXX might need to stash again the prior lastBlock and first little
-			// chunk
+			// XXX might need to stash again the prior lastBlock and first little chunk
 			return numWritten, err
 		}
 		mh.tree.Nodes = append(mh.tree.Nodes, n)
@@ -81,12 +93,21 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 
 	numBytes = (len(b) - offset)
 	for i := 0; i < numBytes/mh.blockSize; i++ {
-		// TODO Node for curBlock
+		//fmt.Printf("%s", b[offset:offset+mh.blockSize])
+		numWritten += copy(curBlock, b[offset:offset+mh.blockSize])
+		n, err := NewNodeHashBlock(mh.hm, curBlock)
+		if err != nil {
+			// XXX might need to stash again the prior lastBlock and first little chunk
+			return numWritten, err
+		}
+		mh.tree.Nodes = append(mh.tree.Nodes, n)
+		offset = offset + mh.blockSize
 	}
 
-	// TODO stash (numBytes % mh.blockSize) in mh.lastBlock
+	mh.lastBlockLen = numBytes % mh.blockSize
+	//                                       XXX off by one?
+	numWritten += copy(mh.lastBlock[:], b[(len(b)-mh.lastBlockLen):])
 
-	// TODO if len(mh.lastBlock) < blockSize, then set that before returning
 	return numWritten, nil
 }
 
