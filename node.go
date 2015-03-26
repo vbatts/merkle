@@ -25,12 +25,14 @@ func NewNodeHash(h HashMaker) *Node {
 }
 
 // NewNodeHashBlock returns a new Node using the provided crypto.Hash, and calculates the block's checksum
-func NewNodeHashBlock(h HashMaker, b []byte) *Node {
+func NewNodeHashBlock(h HashMaker, b []byte) (*Node, error) {
 	n := &Node{hash: h}
 	h1 := n.hash()
-	h1.Write(b)
+	if _, err := h1.Write(b); err != nil {
+		return nil, err
+	}
 	n.checksum = h1.Sum(nil)
-	return n
+	return n, nil
 }
 
 // Node is a fundamental part of the tree.

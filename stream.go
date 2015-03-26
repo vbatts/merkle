@@ -13,6 +13,7 @@ func NewHash(hm HashMaker, merkleBlockLength int) hash.Hash {
 	mh.blockSize = merkleBlockLength
 	mh.hm = hm
 	mh.tree = &Tree{Nodes: []*Node{}, BlockLength: merkleBlockLength}
+	mh.lastBlock = make([]byte, merkleBlockLength)
 	return mh
 }
 
@@ -22,11 +23,12 @@ func NewHash(hm HashMaker, merkleBlockLength int) hash.Hash {
 
 // TODO satisfy the hash.Hash interface
 type merkleHash struct {
-	blockSize        int
-	tree             *Tree
-	hm               HashMaker
-	lastBlock        []byte // as needed, for Sum()
-	partialLastBlock bool
+	blockSize    int
+	tree         *Tree
+	hm           HashMaker
+	lastBlock    []byte // as needed, for Sum()
+	lastBlockLen int
+	//partialLastBlock bool
 }
 
 // XXX this will be tricky, as the last block can be less than the BlockSize.
@@ -48,6 +50,7 @@ func (mh *merkleHash) Sum(b []byte) []byte {
 
 func (mh *merkleHash) Write(b []byte) (int, error) {
 	// basically we need to:
+	// * include prior partial lastBlock, if any
 	// * chunk these writes into blockSize
 	// * create Node of the sum
 	// * add the Node to the tree
@@ -57,22 +60,26 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 		curBlock       = make([]byte, mh.blockSize)
 		numBytes   int = 0
 		numWritten int
+		offset     int = 0
 	)
-	if mh.lastBlock != nil && len(mh.lastBlock) > 0 {
-		numBytes = copy(curBlock, mh.lastBlock)
+	if mh.lastBlock != nil && mh.lastBlockLen > 0 {
+		numBytes = copy(curBlock[:], mh.lastBlock[:])
 		// not adding to numWritten, since these blocks were accounted for in a
 		// prior Write()
+
+		// then we'll chunk the front of the incoming bytes
+		offset = copy(curBlock[numBytes:], b[:(mh.blockSize-numBytes)])
+		n, err := NewNodeHashBlock(mh.hm, curBlock)
+		if err != nil {
+			// XXX might need to stash again the prior lastBlock and first little
+			// chunk
+			return numWritten, err
+		}
+		mh.tree.Nodes = append(mh.tree.Nodes, n)
+		numWritten += offset
 	}
 
-	if numBytes > 0 {
-		copy(curBlock, b[:(mh.blockSize-numBytes)])
-		numWritten += (mh.blockSize - numBytes)
-		// TODO Node for curBlock
-		n := NewNodeHashBlock(mh.hm, curBlock)
-		_ = n
-	}
-
-	numBytes = len(b) - numBytes
+	numBytes = (len(b) - offset)
 	for i := 0; i < numBytes/mh.blockSize; i++ {
 		// TODO Node for curBlock
 	}
