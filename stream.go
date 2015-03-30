@@ -9,13 +9,26 @@ import (
 // NewHash provides a hash.Hash to generate a merkle.Tree checksum, given a
 // HashMaker for the checksums of the blocks written and the blockSize of each
 // block per node in the tree.
-func NewHash(hm HashMaker, merkleBlockLength int) hash.Hash {
+func NewHash(hm HashMaker, merkleBlockLength int) HashTreeer {
 	mh := new(merkleHash)
 	mh.blockSize = merkleBlockLength
 	mh.hm = hm
 	mh.tree = &Tree{Nodes: []*Node{}, BlockLength: merkleBlockLength}
 	mh.lastBlock = make([]byte, merkleBlockLength)
 	return mh
+}
+
+// Treeer (Tree-er) provides access to the Merkle tree internals
+type Treeer interface {
+	Nodes() []*Node
+	Root() *Node
+}
+
+// HashTreeer can be used as a hash.Hash but also provide access to the Merkle
+// tree internals
+type HashTreeer interface {
+	hash.Hash
+	Treeer
 }
 
 // TODO make a similar hash.Hash, that accepts an argument of a merkle.Tree,
@@ -29,6 +42,14 @@ type merkleHash struct {
 	lastBlock       []byte // as needed, for Sum()
 	lastBlockLen    int
 	partialLastNode bool // true when Sum() has appended a Node for a partial block
+}
+
+func (mh merkleHash) Nodes() []*Node {
+	return mh.tree.Nodes
+}
+
+func (mh merkleHash) Root() *Node {
+	return mh.tree.Root()
 }
 
 // XXX this will be tricky, as the last block can be less than the BlockSize.
