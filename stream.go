@@ -62,8 +62,8 @@ func (mh merkleHash) Root() *Node {
 // if that last block was complete, then no worries. start the next node.
 func (mh *merkleHash) Sum(b []byte) []byte {
 	var (
-		curBlock     = []byte{}
-		offset   int = 0
+		curBlock = []byte{}
+		offset   int
 	)
 	if mh.partialLastNode {
 		// if this is true, then we need to pop the last node
@@ -130,10 +130,10 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 	// * stash remainder in the mh.lastBlock
 
 	var (
-		curBlock       = make([]byte, mh.blockSize)
-		numBytes   int = 0
+		curBlock   = make([]byte, mh.blockSize)
+		numBytes   int
 		numWritten int
-		offset     int = 0
+		offset     int
 	)
 	if mh.lastBlock != nil && mh.lastBlockLen > 0 {
 		//                                         XXX off by one?
