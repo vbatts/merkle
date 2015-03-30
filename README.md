@@ -12,6 +12,13 @@ Docs
 * https://godoc.org/github.com/vbatts/merkle
 
 
+What's Next?
+------------
+
+* More tests and review
+* Streaming `HashTreeer` type, that can validate provided Nodes, for streaming validation
+
+
 License
 -------
 
