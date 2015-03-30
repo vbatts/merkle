@@ -3,6 +3,7 @@ package merkle
 import (
 	"hash"
 	"log"
+	"runtime"
 )
 
 // NewHash provides a hash.Hash to generate a merkle.Tree checksum, given a
@@ -39,23 +40,62 @@ type merkleHash struct {
 //
 // if that last block was complete, then no worries. start the next node.
 func (mh *merkleHash) Sum(b []byte) []byte {
-	if b != nil && (len(b)+mh.lastBlockLen) > mh.blockSize {
-		// write a full node
+	var (
+		curBlock     = []byte{}
+		offset   int = 0
+	)
+	if mh.partialLastNode {
+		// if this is true, then we need to pop the last node
+		mh.tree.Nodes = mh.tree.Nodes[:len(mh.tree.Nodes)-1]
+		mh.partialLastNode = false
 	}
 
-	n, err := NewNodeHashBlock(mh.hm, curBlock)
-	if err != nil {
-		// XXX might need to stash again the prior lastBlock and first little chunk
-		return numWritten, err
+	if mh.lastBlockLen > 0 {
+		curBlock = append(curBlock[:], mh.lastBlock[:mh.lastBlockLen]...)
+		mh.lastBlockLen = 0
 	}
-	mh.tree.Nodes = append(mh.tree.Nodes, n)
-	numWritten += offset
 
-	// TODO check if len(mh.lastBlock) < blockSize
+	if b != nil && len(b) > 0 {
+		curBlock = append(curBlock, b...)
+	}
+
+	for i := 0; i < len(curBlock)/mh.blockSize; i++ {
+		n, err := NewNodeHashBlock(mh.hm, curBlock[offset:(offset+mh.blockSize)])
+		if err != nil {
+			// XXX i hate to swallow an error here, but the `Sum() []byte` signature
+			// :-\
+			sBuf := make([]byte, 1024)
+			runtime.Stack(sBuf, false)
+			log.Printf("[ERROR]: %s %q", err, string(sBuf))
+			return nil
+		}
+		mh.tree.Nodes = append(mh.tree.Nodes, n)
+		offset = offset + mh.blockSize
+	}
+
+	// If there is remainder, we'll need to make a partial node and stash it
+	if m := (len(curBlock) % mh.blockSize); m != 0 {
+		mh.lastBlockLen = copy(mh.lastBlock, curBlock[offset:])
+
+		n, err := NewNodeHashBlock(mh.hm, curBlock[offset:])
+		if err != nil {
+			sBuf := make([]byte, 1024)
+			runtime.Stack(sBuf, false)
+			log.Printf("[ERROR]: %s %q", err, string(sBuf))
+			return nil
+		}
+		mh.tree.Nodes = append(mh.tree.Nodes, n)
+		mh.partialLastNode = true
+	}
+
 	sum, err := mh.tree.Root().Checksum()
 	if err != nil {
-		// XXX i hate to swallow an error here, but the `Sum() []byte` signature :-\
-		log.Printf("[ERROR]: %s", err)
+		// XXX i hate to swallow an error here, but the `Sum() []byte` signature
+		// :-\
+		sBuf := make([]byte, 1024)
+		runtime.Stack(sBuf, false)
+		log.Printf("[ERROR]: %s %q", err, string(sBuf))
+		return nil
 	}
 	return sum
 }
