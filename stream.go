@@ -10,6 +10,10 @@ import (
 // HashMaker for the checksums of the blocks written and the blockSize of each
 // block per node in the tree.
 func NewHash(hm HashMaker, merkleBlockLength int) HashTreeer {
+	return newMerkleHash(hm, merkleBlockLength)
+}
+
+func newMerkleHash(hm HashMaker, merkleBlockLength int) *merkleHash {
 	mh := new(merkleHash)
 	mh.blockSize = merkleBlockLength
 	mh.hm = hm
@@ -42,6 +46,11 @@ type merkleHash struct {
 	lastBlock       []byte // as needed, for Sum()
 	lastBlockLen    int
 	partialLastNode bool // true when Sum() has appended a Node for a partial block
+}
+
+func (mh *merkleHash) Reset() {
+	mh1 := newMerkleHash(mh.hm, mh.blockSize)
+	*mh = *mh1
 }
 
 func (mh merkleHash) Nodes() []*Node {
@@ -78,6 +87,11 @@ func (mh *merkleHash) Sum(b []byte) []byte {
 
 	if b != nil && len(b) > 0 {
 		curBlock = append(curBlock, b...)
+	}
+
+	// incase we're at a new or reset state
+	if len(mh.tree.Nodes) == 0 && len(curBlock) == 0 {
+		return nil
 	}
 
 	for i := 0; i < len(curBlock)/mh.blockSize; i++ {
@@ -170,11 +184,6 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 	numWritten += copy(mh.lastBlock[:], b[(len(b)-mh.lastBlockLen):])
 
 	return numWritten, nil
-}
-
-func (mh *merkleHash) Reset() {
-	mh.tree = &Tree{}
-	mh.lastBlock = nil
 }
 
 // likely not the best to pass this through and not use our own node block
