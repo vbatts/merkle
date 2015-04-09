@@ -150,13 +150,22 @@ func (mh *merkleHash) Write(b []byte) (int, error) {
 		offset     int
 	)
 	if mh.lastBlock != nil && mh.lastBlockLen > 0 {
+		if (mh.lastBlockLen + len(b)) < mh.blockSize {
+			mh.lastBlockLen += copy(mh.lastBlock[mh.lastBlockLen:], b[:])
+			return len(b), nil
+		}
+
 		//                                         XXX off by one?
 		numBytes = copy(curBlock[:], mh.lastBlock[:mh.lastBlockLen])
 		// not adding to numWritten, since these blocks were accounted for in a
 		// prior Write()
 
 		// then we'll chunk the front of the incoming bytes
-		offset = copy(curBlock[numBytes:], b[:(mh.blockSize-numBytes)])
+		end := mh.blockSize - numBytes
+		if end > len(b) {
+			end = len(b)
+		}
+		offset = copy(curBlock[numBytes:], b[:end])
 		n, err := NewNodeHashBlock(mh.hm, curBlock)
 		if err != nil {
 			// XXX might need to stash again the prior lastBlock and first little chunk
