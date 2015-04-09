@@ -4,8 +4,58 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"testing"
 )
+
+func TestMerkleHashWriterLargeChunk(t *testing.T) {
+	// make a large enough test file of increments, corresponding to our blockSize
+	bs := 512 * 1024
+	fh, err := ioutil.TempFile("", "merkleChunks.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fh.Close()
+	defer os.Remove(fh.Name())
+
+	// slow, i know ... FIXME
+	for i := 0; i < 5; i++ {
+		b := []byte{byte(i)}
+		for j := 0; j < bs; j++ {
+			fh.Write(b)
+		}
+	}
+	if err := fh.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fh.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedSums := []string{
+		"6a521e1d2a632c26e53b83d2cc4b0edecfc1e68c", // 0's
+		"316c136d75ffdeb6ac5f1262c45dd8c6ec50fd85", // 1's
+		"a56e9c245b9c50d61a91c6c4299813b5e6313722", // 2's
+		"58bed752c036310cc48d9dd0d25c4ee9ad0d7ff1", // 3's
+		"bf382d8394213b897424803c27f3e2ec2223e5fd", // 4's
+	}
+
+	h := NewHash(DefaultHashMaker, bs)
+	if _, err = io.Copy(h, fh); err != nil {
+		t.Fatal(err)
+	}
+	h.Sum(nil)
+	for i, node := range h.Nodes() {
+		c, err := node.Checksum()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cs := fmt.Sprintf("%x", c); cs != expectedSums[i] {
+			t.Errorf("expected sum %q; got %q", expectedSums[i], cs)
+		}
+	}
+}
 
 func TestMerkleHashWriter(t *testing.T) {
 	msg := "the quick brown fox jumps over the lazy dog"
