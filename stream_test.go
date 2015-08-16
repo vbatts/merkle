@@ -1,7 +1,6 @@
 package merkle
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -59,15 +58,15 @@ func TestMerkleHashWriterLargeChunk(t *testing.T) {
 }
 
 func TestMerkleHashWriter(t *testing.T) {
-	msg := "the quick brown fox jumps over the lazy dog"
+	msg := []byte("the quick brown fox jumps over the lazy dog")
 	expectedSum := "48940c1c72636648ad40aa59c162f2208e835b38"
 
 	h := NewHash(DefaultHashMaker, 10)
-	i, err := io.Copy(h, bytes.NewBufferString(msg))
+	i, err := h.Write(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i != int64(len(msg)) {
+	if i != len(msg) {
 		t.Fatalf("expected to write %d, only wrote %d", len(msg), i)
 	}
 
@@ -103,11 +102,11 @@ func TestMerkleHashWriter(t *testing.T) {
 	}
 
 	// write our msg again and get the same sum
-	i, err = io.Copy(h, bytes.NewBufferString(msg))
+	i, err = h.Write(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i != int64(len(msg)) {
+	if i != len(msg) {
 		t.Fatalf("expected to write %d, only wrote %d", len(msg), i)
 	}
 	// Test Sum(), ensure same sum
@@ -117,11 +116,11 @@ func TestMerkleHashWriter(t *testing.T) {
 	}
 
 	// Write more. This should pop the last node, and use the lastBlock.
-	i, err = io.Copy(h, bytes.NewBufferString(msg))
+	i, err = h.Write(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if i != int64(len(msg)) {
+	if i != len(msg) {
 		t.Fatalf("expected to write %d, only wrote %d", len(msg), i)
 	}
 	expectedNum = 9
