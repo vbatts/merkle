@@ -49,8 +49,9 @@ type merkleHash struct {
 }
 
 func (mh *merkleHash) Reset() {
-	mh1 := newMerkleHash(mh.hm, mh.blockSize)
-	*mh = *mh1
+	mh.tree = &Tree{Nodes: []*Node{}, BlockLength: mh.blockSize}
+	mh.lastBlockLen = 0
+	mh.partialLastNode = false
 }
 
 func (mh merkleHash) Nodes() []*Node {
