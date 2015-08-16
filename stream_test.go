@@ -19,12 +19,13 @@ func TestMerkleHashWriterLargeChunk(t *testing.T) {
 	defer fh.Close()
 	defer os.Remove(fh.Name())
 
-	// slow, i know ... FIXME
 	for i := 0; i < 5; i++ {
 		b := []byte{byte(i)}
+		var b2 []byte
 		for j := 0; j < bs; j++ {
-			fh.Write(b)
+			b2 = append(b2, b...)
 		}
+		fh.Write(b2)
 	}
 	if err := fh.Sync(); err != nil {
 		t.Fatal(err)
