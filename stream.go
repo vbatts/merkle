@@ -1,8 +1,9 @@
 package merkle
 
 import (
+	"fmt"
 	"hash"
-	"log"
+	"os"
 	"runtime"
 )
 
@@ -102,7 +103,7 @@ func (mh *merkleHash) Sum(b []byte) []byte {
 			// :-\
 			sBuf := make([]byte, 1024)
 			runtime.Stack(sBuf, false)
-			log.Printf("[ERROR]: %s %q", err, string(sBuf))
+			fmt.Fprintf(os.Stderr, "[ERROR]: %s %q", err, string(sBuf))
 			return nil
 		}
 		mh.tree.Nodes = append(mh.tree.Nodes, n)
@@ -117,7 +118,7 @@ func (mh *merkleHash) Sum(b []byte) []byte {
 		if err != nil {
 			sBuf := make([]byte, 1024)
 			runtime.Stack(sBuf, false)
-			log.Printf("[ERROR]: %s %q", err, string(sBuf))
+			fmt.Fprintf(os.Stderr, "[ERROR]: %s %q", err, string(sBuf))
 			return nil
 		}
 		mh.tree.Nodes = append(mh.tree.Nodes, n)
@@ -130,7 +131,7 @@ func (mh *merkleHash) Sum(b []byte) []byte {
 		// :-\
 		sBuf := make([]byte, 1024)
 		runtime.Stack(sBuf, false)
-		log.Printf("[ERROR]: %s %q", err, string(sBuf))
+		fmt.Fprintf(os.Stderr, "[ERROR]: %s %q", err, string(sBuf))
 		return nil
 	}
 	return sum
