@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
 	"hash"
@@ -140,6 +141,7 @@ func TestMerkleHashWriter(t *testing.T) {
 }
 
 var benchDefault = NewHash(DefaultHashMaker, 8192)
+var benchSha256 = NewHash(func() hash.Hash { return sha256.New() }, 8192)
 var benchSha512 = NewHash(func() hash.Hash { return sha512.New() }, 8192)
 var buf = make([]byte, 8192)
 
@@ -163,6 +165,18 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(benchDefault, b, 8192)
+}
+
+func BenchmarkSha256Hash8Bytes(b *testing.B) {
+	benchmarkSize(benchSha256, b, 8)
+}
+
+func BenchmarkSha256Hash1K(b *testing.B) {
+	benchmarkSize(benchSha256, b, 1024)
+}
+
+func BenchmarkSha256Hash8K(b *testing.B) {
+	benchmarkSize(benchSha256, b, 8192)
 }
 
 func BenchmarkSha512Hash8Bytes(b *testing.B) {
