@@ -1,7 +1,9 @@
 package merkle
 
 import (
+	"crypto/sha512"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -137,10 +139,11 @@ func TestMerkleHashWriter(t *testing.T) {
 
 }
 
-var bench = NewHash(DefaultHashMaker, 8192)
+var benchDefault = NewHash(DefaultHashMaker, 8192)
+var benchSha512 = NewHash(func() hash.Hash { return sha512.New() }, 8192)
 var buf = make([]byte, 8192)
 
-func benchmarkSize(b *testing.B, size int) {
+func benchmarkSize(bench hash.Hash, b *testing.B, size int) {
 	b.SetBytes(int64(size))
 	sum := make([]byte, bench.Size())
 	for i := 0; i < b.N; i++ {
@@ -151,13 +154,25 @@ func benchmarkSize(b *testing.B, size int) {
 }
 
 func BenchmarkHash8Bytes(b *testing.B) {
-	benchmarkSize(b, 8)
+	benchmarkSize(benchDefault, b, 8)
 }
 
 func BenchmarkHash1K(b *testing.B) {
-	benchmarkSize(b, 1024)
+	benchmarkSize(benchDefault, b, 1024)
 }
 
 func BenchmarkHash8K(b *testing.B) {
-	benchmarkSize(b, 8192)
+	benchmarkSize(benchDefault, b, 8192)
+}
+
+func BenchmarkSha512Hash8Bytes(b *testing.B) {
+	benchmarkSize(benchSha512, b, 8)
+}
+
+func BenchmarkSha512Hash1K(b *testing.B) {
+	benchmarkSize(benchSha512, b, 1024)
+}
+
+func BenchmarkSha512Hash8K(b *testing.B) {
+	benchmarkSize(benchSha512, b, 8192)
 }
